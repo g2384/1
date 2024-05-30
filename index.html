@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello</title>
+    <script src="./js/fuse.js"></script>
+    <script src="./js/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f9f9f9;
+            max-width: 800px;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0 auto;
+        }
+
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+        }
+
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        textarea,
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        #result {
+            background: #f1f1f1;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            overflow-y: auto;
+        }
+
+        p {
+            margin: 0;
+            padding: 5px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Hello!</h1>
+    <input type="text" id="jsonLink" placeholder="JSON"><br>
+    <textarea id="encryptionKey" rows="2" placeholder="Enter encryption key"></textarea><br>
+    <input type="text" id="fuzzySearch" placeholder="Search text"><br>
+
+    <div id="result"></div>
+
+    <script>
+        let encryptedCollection = [];
+        let decryptedCollection = [];
+
+        function decrypt(text, key) {
+            try {
+                return CryptoJS.AES.decrypt(text, CryptoJS.enc.Utf8.parse(key), {
+                    iv: CryptoJS.lib.WordArray.create([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7
+                }).toString(CryptoJS.enc.Utf8);
+            } catch (e) {
+                return "";
+            }
+        }
+
+        document.getElementById('encryptionKey').addEventListener('input', function () {
+            const key = this.value.replace(/\s/g, '').substr(0, 256 / 8);
+            console.log(key);
+            decryptedCollection = encryptedCollection.map(item => {
+                return decrypt(item, key);
+            });
+            displayResults(decryptedCollection);
+        });
+
+        document.getElementById('fuzzySearch').addEventListener('input', function () {
+            const searchTerm = this.value;
+            const fuse = new Fuse(decryptedCollection, {
+                keys: ['text'],
+                includeScore: true
+            });
+            if (searchTerm.length > 0) {
+                const result = fuse.search(searchTerm).map(result => result.item);
+                displayResults(result);
+            }
+            else {
+                displayResults(decryptedCollection);
+            }
+        });
+
+        document.getElementById('jsonLink').addEventListener('input', async function () {
+            const jsonLink = this.value.trim();
+
+            try {
+                const response = await fetch(jsonLink);
+                const jsonData = await response.json();
+                encryptedCollection = jsonData;
+                console.log('JSON data loaded:', encryptedCollection);
+            } catch (error) {
+                console.error('Error loading JSON data:', error);
+            }
+        });
+
+        function displayResults(collection) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = "";
+            if (collection.length > 0) {
+                collection.forEach(item => {
+                    const p = document.createElement('p');
+                    p.textContent = item;
+                    resultDiv.appendChild(p);
+                });
+            } else {
+                resultDiv.textContent = "No results found or incorrect key.";
+            }
+        }
+    </script>
+</body>
+
+</html>
