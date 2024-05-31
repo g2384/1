@@ -61,12 +61,20 @@
             margin: 0;
             padding: 5px 0;
         }
+
+        #jsonStatus {
+            display: block;
+            text-align: right;
+            font-size: 0.9em;
+            margin-top: -2em;
+        }
     </style>
 </head>
 
 <body>
     <h1>AES.Decrypt</h1>
-    <input type="text" id="jsonLink" placeholder="JSON"><br>
+    <input type="text" id="jsonLink" placeholder="JSON">
+    <span id="jsonStatus">.</span><br>
     <textarea id="encryptionKey" rows="2" placeholder="Enter encryption key"></textarea><br>
     <textarea id="encryptionIV" rows="2" placeholder="Enter IV"></textarea><br>
     <input type="text" id="fuzzySearch" placeholder="Search text"><br>
@@ -89,25 +97,15 @@
             }
         }
 
-        document.getElementById('encryptionKey').addEventListener('input', function () {
-            const key = this.value.replace(/\s/g, '').substr(0, 256 / 8);
-            const iv = document.getElementById('encryptionIV').replace(/\s/g, '').substr(0, 16);
-            console.log(key);
-            decryptedCollection = encryptedCollection.map(item => {
-                return decrypt(item, key);
-            });
+        function handleEncryptionInput() {
+            const key = document.getElementById('encryptionKey').value.replace(/\s/g, '').substr(0, 256 / 8);
+            const iv = document.getElementById('encryptionIV').value.replace(/\s/g, '').substr(0, 16);
+            decryptedCollection = encryptedCollection.map(item => decrypt(item, key, iv));
             displayResults(decryptedCollection);
-        });
+        }
 
-        document.getElementById('encryptionIV').addEventListener('input', function () {
-            const key = document.getElementById('encryptionKey').replace(/\s/g, '').substr(0, 256 / 8);
-            const iv = this.value.replace(/\s/g, '').substr(0, 16);
-            console.log(key);
-            decryptedCollection = encryptedCollection.map(item => {
-                return decrypt(item, key, iv);
-            });
-            displayResults(decryptedCollection);
-        });
+        document.getElementById('encryptionKey').addEventListener('input', handleEncryptionInput);
+        document.getElementById('encryptionIV').addEventListener('input', handleEncryptionInput);
 
         document.getElementById('fuzzySearch').addEventListener('input', function () {
             const searchTerm = this.value;
@@ -118,24 +116,42 @@
             if (searchTerm.length > 0) {
                 const result = fuse.search(searchTerm).map(result => result.item);
                 displayResults(result);
-            }
-            else {
+            } else {
                 displayResults(decryptedCollection);
             }
         });
 
         document.getElementById('jsonLink').addEventListener('input', async function () {
             const jsonLink = this.value.trim();
+            const jsonStatus = document.getElementById('jsonStatus');
 
             try {
                 const response = await fetch(jsonLink);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                var name = getFileNameFromUrl(jsonLink);
                 const jsonData = await response.json();
                 encryptedCollection = jsonData;
-                console.log('JSON data loaded:', encryptedCollection);
+                jsonStatus.textContent = name + ' successfully loaded';
+                jsonStatus.style.color = 'green';
+                handleEncryptionInput(); // Call decrypt method when JSON changes
             } catch (error) {
+                jsonStatus.textContent = name + ' failed to load';
+                jsonStatus.style.color = 'red';
                 console.error('Error loading JSON data:', error);
             }
         });
+
+        function getFileNameFromUrl(url) {
+            const filenameRegex = /\/([^/]+?\.json)(?:\?|$)/;
+            const match = url.match(filenameRegex);
+            if (match) {
+                return match[1];
+            }
+
+            return null;
+        }
 
         function displayResults(collection) {
             const resultDiv = document.getElementById('result');
