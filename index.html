@@ -68,6 +68,15 @@
             font-size: 0.9em;
             margin-top: -2em;
         }
+
+        .source {
+            text-align: center;
+            color: rgb(0, 151, 197);
+        }
+
+        .source a:visited {
+            color: rgb(0, 151, 197);
+        }
     </style>
 </head>
 
@@ -80,6 +89,8 @@
     <input type="text" id="fuzzySearch" placeholder="Search text"><br>
 
     <div id="result"></div>
+
+    <div class="source"><a href="https://github.com/g2384/1">[source]</a></div>
 
     <script>
         let encryptedCollection = [];
@@ -124,13 +135,13 @@
         document.getElementById('jsonLink').addEventListener('input', async function () {
             const jsonLink = this.value.trim();
             const jsonStatus = document.getElementById('jsonStatus');
+            var name = getFileNameFromUrl(jsonLink);
 
             try {
                 const response = await fetch(jsonLink);
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-                var name = getFileNameFromUrl(jsonLink);
                 const jsonData = await response.json();
                 encryptedCollection = jsonData;
                 jsonStatus.textContent = name + ' successfully loaded';
@@ -150,7 +161,7 @@
                 return match[1];
             }
 
-            return null;
+            return url;
         }
 
         function displayResults(collection) {
