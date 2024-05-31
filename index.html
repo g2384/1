@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello</title>
+    <title>AES.Decrypt</title>
     <script src="./js/fuse.js"></script>
     <script src="./js/crypto-js.min.js"></script>
     <style>
@@ -65,9 +65,10 @@
 </head>
 
 <body>
-    <h1>Hello!</h1>
+    <h1>AES.Decrypt</h1>
     <input type="text" id="jsonLink" placeholder="JSON"><br>
     <textarea id="encryptionKey" rows="2" placeholder="Enter encryption key"></textarea><br>
+    <textarea id="encryptionIV" rows="2" placeholder="Enter IV"></textarea><br>
     <input type="text" id="fuzzySearch" placeholder="Search text"><br>
 
     <div id="result"></div>
@@ -76,10 +77,10 @@
         let encryptedCollection = [];
         let decryptedCollection = [];
 
-        function decrypt(text, key) {
+        function decrypt(text, key, iv) {
             try {
                 return CryptoJS.AES.decrypt(text, CryptoJS.enc.Utf8.parse(key), {
-                    iv: CryptoJS.lib.WordArray.create([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+                    iv: CryptoJS.enc.Utf8.parse(iv),
                     mode: CryptoJS.mode.CBC,
                     padding: CryptoJS.pad.Pkcs7
                 }).toString(CryptoJS.enc.Utf8);
@@ -90,9 +91,20 @@
 
         document.getElementById('encryptionKey').addEventListener('input', function () {
             const key = this.value.replace(/\s/g, '').substr(0, 256 / 8);
+            const iv = document.getElementById('encryptionIV').replace(/\s/g, '').substr(0, 16);
             console.log(key);
             decryptedCollection = encryptedCollection.map(item => {
                 return decrypt(item, key);
+            });
+            displayResults(decryptedCollection);
+        });
+
+        document.getElementById('encryptionIV').addEventListener('input', function () {
+            const key = document.getElementById('encryptionKey').replace(/\s/g, '').substr(0, 256 / 8);
+            const iv = this.value.replace(/\s/g, '').substr(0, 16);
+            console.log(key);
+            decryptedCollection = encryptedCollection.map(item => {
+                return decrypt(item, key, iv);
             });
             displayResults(decryptedCollection);
         });
