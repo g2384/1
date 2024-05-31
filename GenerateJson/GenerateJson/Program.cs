@@ -15,6 +15,7 @@ namespace GenerateJson
         {
             string inputFilePath = "input.txt";
             string keyFilePath = "key.txt";
+            string ivFilePath = "iv.txt";
 
             if (!File.Exists(inputFilePath))
             {
@@ -29,33 +30,52 @@ namespace GenerateJson
             }
 
             var lines = File.ReadAllLines(inputFilePath);
-            string encryptionKey = File.ReadAllText(keyFilePath);
-            encryptionKey = RemoveWhitespace(encryptionKey);
+            var encryptionKey = GetKeyChars(keyFilePath);
+            var encryptionIV = GetKeyChars(ivFilePath);
 
             var random = new Random(42); // Stable random generator seed
 
-            var maxLegalKeySize = 256;
-            using (var aes = Aes.Create())
-            {
-                maxLegalKeySize = aes.LegalKeySizes.Max()!.MaxSize;
-                Console.WriteLine($"Max legal key size: {maxLegalKeySize}");
-            }
-
             for (var i = 0; i < 50; i++)
             {
-                string reshuffledKey = Reshuffle(encryptionKey, random);
-                reshuffledKey = reshuffledKey.PadRight(maxLegalKeySize / 8).Substring(0, maxLegalKeySize / 8);
-                Encrypt(lines, i, reshuffledKey);
+                var reshuffledKey = Reshuffle(encryptionKey, random);
+                var reshuffledIV = Reshuffle(encryptionIV, random);
+                reshuffledKey = ResizetToKey(reshuffledKey);
+                reshuffledIV = ResizeToIV(reshuffledIV);
+                Encrypt(lines, i, reshuffledKey, reshuffledIV);
             }
 
-            encryptionKey = encryptionKey.PadRight(maxLegalKeySize / 8).Substring(0, maxLegalKeySize / 8);
-            Encrypt(lines, 51, encryptionKey);
+            encryptionKey = ResizetToKey(encryptionKey);
+            encryptionIV = ResizeToIV(encryptionIV);
+            Encrypt(lines, 51, encryptionKey, encryptionIV);
         }
 
-        private static void Encrypt(string[] lines, int i, string key)
+        private static string ResizeToIV(string reshuffledIV)
         {
-            Console.WriteLine(key);
+            reshuffledIV = reshuffledIV.PadRight(16).Substring(0, 16);
+            return reshuffledIV;
+        }
+
+        private static string ResizetToKey(string reshuffledKey)
+        {
+            return reshuffledKey.PadRight(256 / 8).Substring(0, 256 / 8);
+        }
+
+        private static string GetKeyChars(string keyFilePath)
+        {
+            string encryptionKey = File.ReadAllText(keyFilePath);
+            encryptionKey = RemoveWhitespace(encryptionKey);
+            return encryptionKey;
+        }
+
+        private static void Encrypt(string[] lines, int i, string key, string iv)
+        {
+            Console.WriteLine($"key: {key}    iv: {iv}");
             var encryptedCollection = new List<string>();
+
+            using var aes = Aes.Create();
+            aes.Key = Encoding.UTF8.GetBytes(key);
+            aes.IV = Encoding.UTF8.GetBytes(iv);
+            var encryptor = aes.CreateEncryptor();
 
             foreach (var line in lines)
             {
@@ -64,7 +84,7 @@ namespace GenerateJson
                     continue;
                 }
 
-                string encryptedText = EncryptString(line, key);
+                string encryptedText = EncryptString(line, encryptor);
                 encryptedCollection.Add(encryptedText);
             }
 
@@ -81,13 +101,8 @@ namespace GenerateJson
             return new string(input.OrderBy(_ => random.Next()).ToArray());
         }
 
-        static string EncryptString(string plainText, string key)
+        static string EncryptString(string plainText, ICryptoTransform encryptor)
         {
-            using var aes = Aes.Create();
-            aes.Key = Encoding.UTF8.GetBytes(key);
-            aes.IV = new byte[16];
-            var encryptor = aes.CreateEncryptor();
-
             using var ms = new MemoryStream();
             using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
             {
